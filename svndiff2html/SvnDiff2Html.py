@@ -7,9 +7,9 @@ Created on 30/mar/2013
 '''
 
 import re
-from svndiff2html.HtmlTag import HtmlTag
-from svndiff2html.TagMode import TagMode
-from svndiff2html.SvnDiff import SvnDiff
+from HtmlTag import HtmlTag
+from TagMode import TagMode
+from SvnDiff import SvnDiff
 
 class SvnDiff2Html(object):
 	'''
@@ -231,7 +231,7 @@ class SvnDiff2Html(object):
 
 		m1 = re.match(r"^Property changes on: (.*)", line)
 		if m1 and (not m1.group(1) in self.__seen or self.__seen[m1.group(1)] <= 0):
-			out += self.__handlePropertyChange()
+			out += self.__handlePropertyChange(m1)
 		elif re.match(r"^\@\@", line):
 			if self.__inSpan:
 				out += self.__inSpan.getCloseTag()
@@ -260,7 +260,7 @@ class SvnDiff2Html(object):
 		html_id = re.sub(r"[^\w_]", r"", filename)
 
 		# Dump line.
-		self.__goToNextLine()
+		self.__diff.goToNextLine()
 
 		# Output the headers.
 		if self.__inSpan:
@@ -310,7 +310,7 @@ class SvnDiff2Html(object):
 		out += "#msg dl a:link    { color:#fc3; }\n"
 		out += "#msg dl a:active  { color:#ff0; }\n"
 		out += "#msg dl a:visited { color:#cc6; }\n"
-		out += "h3 { font-family: verdana,arial,helvetica,sans-serif; font-size: 10pt; font-weight: bold; }\n"
+		out += "#patch h3 { font-family: verdana,arial,helvetica,sans-serif; font-size: 10pt; font-weight: bold; }\n"
 		out += "#msg pre { overflow: auto; background: #ffc; border: 1px #fa0 solid; padding: 6px; }\n"
 		out += "#logmsg { background: #ffc; border: 1px #fa0 solid; padding: 1em 1em 0 1em; }\n"
 		out += "#logmsg p, #logmsg pre, #logmsg blockquote { margin: 0 0 1em 0; }\n"
@@ -333,7 +333,6 @@ class SvnDiff2Html(object):
 		out += "#logmsg table thead th { text-align: center; border-bottom: 1px solid #fa0; }\n"
 		out += "#logmsg table th.Corner { text-align: left; }\n"
 		out += "#logmsg hr { border: none 0; border-top: 2px dashed #fa0; height: 1px; }\n"
-		out += "#header, #footer { color: #fff; background: #636; border: 1px #300 solid; padding: 6px; }\n"
 		out += "#patch { width: 100%; }\n"
 		out += "#patch h4 {font-family: verdana,arial,helvetica,sans-serif;"
 		out += "font-size:10pt;padding:8px;background:#369;color:#fff; margin:0;}\n"

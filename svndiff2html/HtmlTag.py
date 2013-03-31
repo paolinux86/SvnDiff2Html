@@ -3,7 +3,7 @@ Created on 31/mar/2013
 
 @author: paolo
 '''
-from svndiff2html.TagMode import TagMode
+from TagMode import TagMode
 
 class HtmlTag(object):
 	'''
