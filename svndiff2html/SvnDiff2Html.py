@@ -9,6 +9,7 @@ Created on 30/mar/2013
 import re
 from svndiff2html.HtmlTag import HtmlTag
 from svndiff2html.TagMode import TagMode
+from svndiff2html.SvnDiff import SvnDiff
 
 class SvnDiff2Html(object):
 	'''
@@ -40,15 +41,11 @@ class SvnDiff2Html(object):
 
 	__seen = {}
 
-	__lines = []
-
-	__currentLine = 0
-
 	def __init__(self, diff):
 		'''
 		Constructor
 		'''
-		self.__lines = diff.splitlines()
+		self.__diff = SvnDiff(diff)
 
 	def output_formatted_diff(self):
 		length = 0
@@ -59,13 +56,11 @@ class SvnDiff2Html(object):
 		divTag.setInnerHtml("\n" + tag.toHtml(TagMode.CLOSED))
 		out = divTag.toHtml() + "\n"
 
-		lines_length = len(self.__lines)
-
-		self.__currentLine = 0
-		while self.__currentLine < lines_length:
-			line = self.__cleanCurrentLine()
+		self.__diff.resetCurrentLine()
+		while not self.__diff.isEndReached():
+			line = self.__diff.cleanCurrentLine()
 			if not line:
-				self.__goToNextLine()
+				self.__diff.goToNextLine()
 				continue
 
 			length += len(line)
@@ -73,55 +68,25 @@ class SvnDiff2Html(object):
 				out += self.__closeAfterMaxLength()
 				break
 
-			m = re.match(r"^(Modified|Added|Deleted|Copied): (.*)", line)
-			if m:
-				out += self.__handleFileChange(m)
+			if self.__diff.isFileChangeLine():
+				out += self.__handleFileChange()
 			else:
-				m1 = re.match(r"^Property changes on: (.*)", line)
-				if m1 and self.__seen[m1.group(1)] <= 0:
-					out += self.__handlePropertyChange()
-				elif re.match(r"^\@\@", line):
-					if self.__inSpan:
-						out += self.__inSpan.getCloseTag()
-					out += "<span class=\"lines\">" + self.html_escape(line) + "\n</span>"
-					self.__inSpan = None
-				else:
-					m2 = re.match(r"^([-+])", line)
-					if m2:
-						out += self.__handleDiff(m2)
-					else:
-						if self.__inSpan == "cx":
-							out += self.html_escape(line) + "\n"
-						else:
-							if self.__inSpan:
-								out += self.__inSpan.getCloseTag()
-							out += "<span class=\"cx\">" + self.html_escape(line) + "\n"
-							self.__inSpan = HtmlTag("span")
-			self.__goToNextLine()
+				out += self.__handleOtherLines()
+
+			self.__diff.goToNextLine()
 
 		if self.__inSpan:
 			out += self.__inSpan.getCloseTag()
 		if self.__inDiv:
-			out += "</span></pre>\n</div>\n"
-		out += "</div>\n"
+			out += HtmlTag.printCloseTag("span")
+			out += HtmlTag.printCloseTag("pre") + "\n"
+			out += HtmlTag.printCloseTag("div") + "\n"
+		out += HtmlTag.printCloseTag("div") + "\n"
 
 		return out;
 
 	def __isMaxLengthReached(self, length):
 		return self.max_length > 0 and length >= self.max_length
-
-	def __goToNextLine(self):
-		self.__currentLine += 1
-
-	def __getCurrentLine(self):
-		return self.__lines[self.__currentLine]
-
-	def __cleanCurrentLine(self):
-		curLine = self.__getCurrentLine()
-		return re.sub(r"[\n\r]+$", r"", curLine)
-
-	def __clean(self, line):
-		return re.sub(r"[\n\r]+$", r"", line)
 
 	def __closeAfterMaxLength(self):
 		out = ""
@@ -138,9 +103,10 @@ class SvnDiff2Html(object):
 
 		return out
 
-	def __handleFileChange(self, m):
+	def __handleFileChange(self):
 		out = ""
 
+		m = self.__diff.isFileChangeLine()
 		action = m.group(1)
 		theClass = self.__types[action]
 		if m.group(2) in self.__seen:
@@ -154,65 +120,29 @@ class SvnDiff2Html(object):
 		if self.__inSpan:
 			out += self.__inSpan.getCloseTag()
 		if self.__inDiv:
-			out += HtmlTag.printCloseTag("span") + HtmlTag.printCloseTag("pre") + HtmlTag.printCloseTag("div") + "\n"
+			out += HtmlTag.printCloseTag("span")
+			out += HtmlTag.printCloseTag("pre")
+			out += HtmlTag.printCloseTag("div") + "\n"
 
 		# Dump line, but check it's content.
-		self.__goToNextLine()
-		m = re.match(r"^=", self.__getCurrentLine())
-		if not m:
+		self.__diff.goToNextLine()
+		line = self.__diff.getCurrentLine()
+		if not self.__diff.hasDiffAttached(line):
 			# Looks like they used --no-diff-added or --no-diff-deleted.
-			self.__inSpan = None
-			__inDiv = False
-			tag = HtmlTag("a", html_id)
-			out += tag.toHtml(TagMode.CLOSED) + "\n"
-
-			tag = HtmlTag("div")
-			tag.addClass(theClass)
-			out += tag.toHtml()
-
-			tag = HtmlTag("h4")
-			tag.setText(action + ": " + filename)
-			out += tag.toHtml(TagMode.CLOSED)
-			out += HtmlTag.printCloseTag("div") + "\n"
-			self.__goToNextLine()
+			out += self.__handleNoDiffAttached(html_id, theClass, action, filename)
 			return out
 
-		self.__goToNextLine()
-		before = self.__cleanCurrentLine()
+		self.__diff.goToNextLine()
+		before = self.__diff.cleanCurrentLine()
 
-		if re.match(r"\(Binary files differ\)", before):
+		if self.__diff.isBinaryDiffLine(before):
 			# Just output the whole filename div.
-			tag = HtmlTag("a", html_id)
-			out += tag.toHtml(TagMode.CLOSED) + "\n"
-
-			tag = HtmlTag("div")
-			tag.addClass("binary")
-			out += tag.toHtml()
-
-			tag = HtmlTag("h4")
-			tag.setText(action + ": " + filename)
-			out += tag.toHtml(TagMode.CLOSED) + "\n"
-
-			tag = HtmlTag("pre")
-			tag.addClass("diff")
-			out += tag.toHtml() + HtmlTag("span").toHtml() + "\n"
-
-			tag = HtmlTag("span")
-			tag.addClass("cx")
-			tag.setText(before + "\n")
-			out += tag.toHtml(TagMode.CLOSED)
-
-			out += HtmlTag.printCloseTag("span") + HtmlTag.printCloseTag("span")
-			out += HtmlTag.printCloseTag("pre") + HtmlTag.printCloseTag("div") + "\n"
-
-			self.__inSpan = None
-			self.__inDiv = False
-			self.__goToNextLine()
+			out += self.__handleBinaryDiff(before, html_id, action, filename)
 			return out
 
 		rev1 = self.__getRevision(before)
-		self.__goToNextLine()
-		after = self.__cleanCurrentLine()
+		self.__diff.goToNextLine()
+		after = self.__diff.cleanCurrentLine()
 		rev2 = self.__getRevision(after)
 
 		# Output the headers.
@@ -240,6 +170,85 @@ class SvnDiff2Html(object):
 		out += self.html_escape(after) + "\n"
 		out += HtmlTag.printCloseTag("span")
 		self.__inSpan = None
+
+		return out
+
+	def __handleNoDiffAttached(self, html_id, theClass, action, filename):
+		out = ""
+
+		self.__inSpan = None
+		self.__inDiv = False
+		tag = HtmlTag("a", html_id)
+		out += tag.toHtml(TagMode.CLOSED) + "\n"
+
+		tag = HtmlTag("div")
+		tag.addClass(theClass)
+		out += tag.toHtml()
+
+		tag = HtmlTag("h4")
+		tag.setText(action + ": " + filename)
+		out += tag.toHtml(TagMode.CLOSED)
+		out += HtmlTag.printCloseTag("div") + "\n"
+		self.__diff.goToNextLine()
+
+		return out
+
+	def __handleBinaryDiff(self, line, html_id, action, filename):
+		out = ""
+
+		tag = HtmlTag("a", html_id)
+		out += tag.toHtml(TagMode.CLOSED) + "\n"
+
+		tag = HtmlTag("div")
+		tag.addClass("binary")
+		out += tag.toHtml()
+
+		tag = HtmlTag("h4")
+		tag.setText(action + ": " + filename)
+		out += tag.toHtml(TagMode.CLOSED) + "\n"
+
+		tag = HtmlTag("pre")
+		tag.addClass("diff")
+		out += tag.toHtml() + HtmlTag("span").toHtml() + "\n"
+
+		tag = HtmlTag("span")
+		tag.addClass("cx")
+		tag.setText(line + "\n")
+		out += tag.toHtml(TagMode.CLOSED)
+
+		out += HtmlTag.printCloseTag("span") + HtmlTag.printCloseTag("span")
+		out += HtmlTag.printCloseTag("pre") + HtmlTag.printCloseTag("div") + "\n"
+
+		self.__inSpan = None
+		self.__inDiv = False
+		self.__diff.goToNextLine()
+
+		return out
+
+	def __handleOtherLines(self):
+		out = ""
+		line = self.__diff.getCurrentLine()
+
+		m1 = re.match(r"^Property changes on: (.*)", line)
+		if m1 and (not m1.group(1) in self.__seen or self.__seen[m1.group(1)] <= 0):
+			out += self.__handlePropertyChange()
+		elif re.match(r"^\@\@", line):
+			if self.__inSpan:
+				out += self.__inSpan.getCloseTag()
+			out += "<span class=\"lines\">" + self.html_escape(line) + "\n</span>"
+			self.__inSpan = None
+		else:
+			m2 = re.match(r"^([-+])", line)
+			if m2:
+				out += self.__handleDiff(m2)
+			else:
+				if self.__inSpan == "cx":
+					out += self.html_escape(line) + "\n"
+				else:
+					if self.__inSpan:
+						out += self.__inSpan.getCloseTag()
+					out += "<span class=\"cx\">" + self.html_escape(line) + "\n"
+					self.__inSpan = HtmlTag("span")
 
 		return out
 
@@ -273,7 +282,7 @@ class SvnDiff2Html(object):
 		else:
 			t = "del"
 
-		line = self.__getCurrentLine()
+		line = self.__diff.getCurrentLine()
 		if self.__inSpan and self.__inSpan.tagname == t:
 			out += self.html_escape(line) + "\n"
 		else:

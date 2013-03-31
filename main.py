@@ -18,3 +18,19 @@ sdiff = SvnDiff2Html(diff)
 # print sdiff.output_css()
 
 print sdiff.output_formatted_diff()
+
+
+
+diff = __callCommand("svnlook diff /svn/repos_mine/ -r 33")
+sdiff = SvnDiff2Html(diff)
+# print sdiff.output_css()
+
+print sdiff.output_formatted_diff()
+
+
+
+diff = 	__callCommand("svnlook diff /svn/repos_mine/ -r 18")
+sdiff = SvnDiff2Html(diff)
+# print sdiff.output_css()
+
+print sdiff.output_formatted_diff()
