@@ -6,7 +6,7 @@ Created on 31/mar/2013
 
 import re
 
-class SvnDiff(object):
+class SvnOutputParser(object):
 	'''
 	classdocs
 	'''

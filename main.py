@@ -13,24 +13,32 @@ def __callCommand(command):
 
 	return result
 
+# svn log svn://localhost/svn/invaders3 -r 0:1 -v | grep -E "^   [A-Z]{1} " | sed -r "s#^   ([A-Z]{1}) /#\1 #g"
+
 diff = __callCommand("svnlook diff /svn/invaders3/ -r 1")
-sdiff = SvnDiff2Html(diff)
+files = __callCommand("svnlook changed /svn/invaders3/ -r 1")
+sdiff = SvnDiff2Html(diff, files)
 # print sdiff.output_css()
 
+print sdiff.output_file_lists()
 print sdiff.output_formatted_diff()
 
 
 
 diff = __callCommand("svnlook diff /svn/repos_mine/ -r 33")
-sdiff = SvnDiff2Html(diff)
+files = __callCommand("svnlook changed /svn/repos_mine/ -r 33")
+sdiff = SvnDiff2Html(diff, files)
 # print sdiff.output_css()
 
+print sdiff.output_file_lists()
 print sdiff.output_formatted_diff()
 
 
 
 diff = 	__callCommand("svnlook diff /svn/repos_mine/ -r 18")
-sdiff = SvnDiff2Html(diff)
+files = __callCommand("svnlook changed /svn/repos_mine/ -r 18")
+sdiff = SvnDiff2Html(diff, files)
 # print sdiff.output_css()
 
+print sdiff.output_file_lists()
 print sdiff.output_formatted_diff()

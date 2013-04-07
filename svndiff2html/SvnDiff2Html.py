@@ -9,7 +9,9 @@ Created on 30/mar/2013
 import re
 from HtmlTag import HtmlTag
 from TagMode import TagMode
-from SvnDiff import SvnDiff
+from SvnOutputParser import SvnOutputParser
+from svndiff2html.HtmlTag import HtmlTag
+from svndiff2html.TagMode import TagMode
 
 class SvnDiff2Html(object):
 	'''
@@ -35,17 +37,62 @@ class SvnDiff2Html(object):
 		"Copied": "copfile",
 	}
 
-	__inDiv = False
+	__changeCodes = {
+		"U": "Modified Paths",
+		"A": "Added Paths",
+		"D": "Removed Paths",
+		"_": "Property Changed"
+	}
 
-	__inSpan = None
-
-	__seen = {}
-
-	def __init__(self, diff):
+	def __init__(self, diff, files):
 		'''
 		Constructor
 		'''
-		self.__diff = SvnDiff(diff)
+		self.__diff = SvnOutputParser(diff)
+		self.__fileChanges = SvnOutputParser(files)
+		self.__inDiv = False
+		self.__inSpan = None
+		self.__seen = {}
+		self.__files = { "U": [], "A": [], "D": [], "_": [], }
+
+	def output_file_lists(self):
+		out = ""
+		while not self.__fileChanges.isEndReached():
+			line = self.__fileChanges.cleanCurrentLine()
+			m = re.match("^(.)(.).+", line)
+			if m:
+				filename = re.sub("^(.)(.)\s+", "", line)
+				self.__files[m.group(1)].append(filename)
+				if m.group(2) != " " and m.group(1) != "_":
+					self.__files["_"].append(filename)
+			self.__fileChanges.goToNextLine()
+
+		for t in [ "U", "A", "D", "_", ]:
+			if not self.__files[t]:
+				continue
+
+			tag = HtmlTag("h3")
+			tag.setText(self.__changeCodes[t])
+			out += tag.toHtml(TagMode.CLOSED) + "\n" + HtmlTag("ul").toHtml() + "\n"
+			for filename in self.__files[t]:
+				f = self.html_escape(filename)
+				if f.endswith("/") and t != "_":
+					# Directories don't link, unless it's a prop change
+					li = HtmlTag("li")
+					li.setText(f)
+					out += li.toHtml(TagMode.CLOSED) + "\n"
+				else:
+					html_id = re.sub(r"[^\w_]", r"", f)
+					aTag = HtmlTag("a")
+					aTag.setText(f)
+					aTag.addAttribute("href", "#" + html_id)
+					li = HtmlTag("li")
+					li.setInnerHtml(aTag.toHtml(TagMode.CLOSED))
+					out += li.toHtml(TagMode.CLOSED) + "\n"
+
+			out += "</ul>\n\n"
+
+		return out
 
 	def output_formatted_diff(self):
 		length = 0
@@ -235,7 +282,10 @@ class SvnDiff2Html(object):
 		elif re.match(r"^\@\@", line):
 			if self.__inSpan:
 				out += self.__inSpan.getCloseTag()
-			out += "<span class=\"lines\">" + self.html_escape(line) + "\n</span>"
+			spanTag = HtmlTag("span")
+			spanTag.addClass("lines")
+			spanTag.setText(self.html_escape(line) + "\n")
+			out += spanTag.toHtml(TagMode.CLOSED)
 			self.__inSpan = None
 		else:
 			m2 = re.match(r"^([-+])", line)
@@ -247,7 +297,10 @@ class SvnDiff2Html(object):
 				else:
 					if self.__inSpan:
 						out += self.__inSpan.getCloseTag()
-					out += "<span class=\"cx\">" + self.html_escape(line) + "\n"
+					spanTag = HtmlTag("span")
+					spanTag.addClass("cx")
+					spanTag.setText(self.html_escape(line) + "\n")
+					out += spanTag.toHtml()
 					self.__inSpan = HtmlTag("span")
 
 		return out
@@ -268,8 +321,9 @@ class SvnDiff2Html(object):
 		if self.__inDiv:
 			out += HtmlTag.printCloseTag("span") + HtmlTag.printCloseTag("pre") + HtmlTag.printCloseTag("div") + "\n"
 
-		out += "<a id=\"" + html_id + "\"></a>\n<div class=\"propset\">";
-		out += "<h4>Property changes: " + filename + "</h4>\n<pre class=\"diff\"</span>\n"
+		out += HtmlTag("a").setText(html_id).toHtml(TagMode.CLOSED) + "\n" + HtmlTag("div").addClass("propset").toHtml()
+		out += HtmlTag("h4").setText("Property changes: " + filename).toHtml(TagMode.CLOSED) + "\n"
+		out += HtmlTag("pre").addClass("diff").toHtml() + HtmlTag("span").toHtml() + "\n"
 		self.__inDiv = True
 		self.__inSpan = None
 
@@ -305,7 +359,7 @@ class SvnDiff2Html(object):
 		out = "#msg dl.meta { border: 1px #006 solid; background: #369; padding: 6px; color: #fff; }\n"
 		out += "#msg dl.meta dt { float: left; width: 6em; font-weight: bold; }\n"
 		out += "#msg dt:after { content:':';}\n"
-		out += "#msg dl, #msg dt, #msg ul, #msg li, #header, #footer, #logmsg { font-family: ), verdana,arial,helvetica,sans-serif; font-size: 10pt;  }\n"
+		out += "#msg dl, #msg dt, #msg ul, #msg li, #logmsg { font-family: ), verdana,arial,helvetica,sans-serif; font-size: 10pt;  }\n"
 		out += "#msg dl a { font-weight: bold}\n"
 		out += "#msg dl a:link    { color:#fc3; }\n"
 		out += "#msg dl a:active  { color:#ff0; }\n"

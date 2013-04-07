@@ -20,6 +20,7 @@ class HtmlTag(object):
 		self.classes = []
 		self.text = ""
 		self.html = ""
+		self.attrs = {}
 
 	def addClass(self, theClass):
 		self.classes.append(theClass)
@@ -33,12 +34,18 @@ class HtmlTag(object):
 	def setInnerHtml(self, html):
 		self.html = html
 
+	def addAttribute(self, attribute, value):
+		self.attrs[attribute] = value
+
 	def toHtml(self, tagMode = TagMode.OPEN):
 		out = "<" + self.tagname
 		if self.tagid:
 			out += " id=\"" + self.tagid + "\""
 		if self.classes:
 			out += " class=\"" + " ".join(self.classes) + "\""
+		if self.attrs:
+			for attr, value in self.attrs.iteritems():
+				out += " " + attr + "=\"" + value + "\""
 		out += ">"
 
 		if self.text:
