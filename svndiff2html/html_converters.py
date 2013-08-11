@@ -11,7 +11,7 @@ from HtmlTag import HtmlTag
 from TagMode import TagMode
 from SvnOutputParser import SvnOutputParser
 
-class SvnDiff2Html(object):
+class SvnlookDiff2Html(object):
 	'''
 	classdocs
 	'''
@@ -399,3 +399,30 @@ class SvnDiff2Html(object):
 		out += "#patch .lines, .info {color:#888;background:#fff;}"
 
 		return out
+
+'''
+Created on 10/ago/2013
+
+@author: paolo
+'''
+class SvnDiff2Html(object):
+	'''
+	classdocs
+	'''
+
+	def __init__(self, diff, files):
+		'''
+		Constructor
+		'''
+		__diff = SvnDiffConverter(diff, files)
+		__files = SvnLogConverter(files)
+		self.__svnlookHtmlConverter = SvnlookDiff2Html(__diff, __files)
+
+	def output_formatted_diff(self):
+		return self.__svnlookHtmlConverter.output_formatted_diff()
+
+	def output_file_lists(self):
+		return self.__svnlookHtmlConverter.output_file_lists()
+
+	def output_css(self):
+		return self.__svnlookHtmlConverter.output_css()
