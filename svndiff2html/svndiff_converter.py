@@ -146,6 +146,9 @@ class SvnLogConverter(object):
 		out = ""
 		for line in self.__files.splitlines():
 			if line.startswith("   "):
-				out += line[3] + "   " + line[6:] + "\n"
+				changeType = line[3]
+				if changeType == "M":
+					changeType = "U"
+				out += changeType + "   " + line[6:] + "\n"
 
 		return out.rstrip("\n")
