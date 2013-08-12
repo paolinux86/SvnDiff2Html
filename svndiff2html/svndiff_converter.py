@@ -61,8 +61,9 @@ class SvnDiffConverter(object):
 		self.__diff.goToNextLine()
 		before = self.__diff.cleanCurrentLine()
 		if self.__diff.isBinaryDiffLine(before):
-			# Just output the whole filename div.
-			out += before + "\n\n"
+			# dump next line
+			self.__diff.goToNextLine()
+			out += "(Binary files differ)\n"
 			return out
 
 		rev1 = self.__getRevision(before)
@@ -91,12 +92,20 @@ class SvnDiffConverter(object):
 	def __handleOtherLines(self):
 		line = self.__diff.getCurrentLine()
 
-		return line + "\n"
+		if self.__diff.isBinaryDiffLine(line):
+			# dump next line
+			self.__diff.goToNextLine()
+			return "(Binary files differ)\n"
+		else:
+			return line + "\n"
 
 class StandardSvnDiffOutputParser(SvnOutputParser):
 	def isFileChangeLine(self):
 		curLine = self.getCurrentLine()
 		return re.match(r"^Index: (.*)", curLine)
+
+	def isBinaryDiffLine(self, line):
+		return re.match(r"Cannot display: file marked as a binary type\.", line)
 
 class SvnLogOutputParser(object):
 	__types = {

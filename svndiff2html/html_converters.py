@@ -417,7 +417,7 @@ class SvnDiff2Html(object):
 		'''
 		__diff = SvnDiffConverter(diff, files)
 		__files = SvnLogConverter(files)
-		self.__svnlookHtmlConverter = SvnlookDiff2Html(__diff, __files)
+		self.__svnlookHtmlConverter = SvnlookDiff2Html(__diff.convert(), __files.convert())
 
 	def output_formatted_diff(self):
 		return self.__svnlookHtmlConverter.output_formatted_diff()
