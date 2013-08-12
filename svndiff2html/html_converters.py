@@ -10,6 +10,7 @@ import re
 from HtmlTag import HtmlTag
 from TagMode import TagMode
 from SvnOutputParser import SvnOutputParser
+from svndiff_converter import SvnDiffConverter
 
 class SvnlookDiff2Html(object):
 	'''
